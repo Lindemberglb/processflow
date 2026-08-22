@@ -7,7 +7,8 @@
 int main(){
     char comando[100];
 
-    tarefa t;
+    tarefa t[MAXIMO_DE_TAREFAS];
+    int quantidade_tarefas = 0;
 
     while (1)
     {
@@ -22,6 +23,11 @@ int main(){
         }
 
         if (strncmp(comando, "task ", 5) == 0){
+            if (quantidade_tarefas >= MAXIMO_DE_TAREFAS){
+                printf("limite de tarefas atingido\n");
+                continue;
+            }
+
             char *parte;
 
             parte = strtok(comando, " ");
@@ -33,7 +39,7 @@ int main(){
                 continue;
             }
 
-            strcpy(t.nome, parte);
+            strcpy(t[quantidade_tarefas].nome, parte);
 
             parte = strtok(NULL, " ");
 
@@ -42,29 +48,31 @@ int main(){
                 continue;
             }
 
-            strcpy(t.programa, parte);
+            strcpy(t[quantidade_tarefas].programa, parte);
 
-            t.quantidade_argumentos = 0;
+            t[quantidade_tarefas].quantidade_argumentos = 0;
 
             while ((parte = strtok(NULL, " ")) != NULL){
-                if (t.quantidade_argumentos >= 10){
+                if (t[quantidade_tarefas].quantidade_argumentos >= 10){
                     printf("limite de argumentos atingido\n");
                     break;
                 }
 
-                strcpy(t.argumentos[t.quantidade_argumentos],parte);
-                t.quantidade_argumentos++;
+                strcpy(t[quantidade_tarefas].argumentos[t[quantidade_tarefas].quantidade_argumentos],parte);
+                t[quantidade_tarefas].quantidade_argumentos++;
             }
+
+            quantidade_tarefas++;
+
+            int quant_arg = 0;
 
             printf("tarefa cadastrada\n");
-            printf("nome: %s\n", t.nome);
-            printf("programa: %s\n", t.programa);
-
+            printf("nome: %s\n", t[quantidade_tarefas - 1].nome);
+            printf("programa: %s\n", t[quantidade_tarefas - 1].programa);
             printf("argumentos: ");
-            for (int i = 0; i < t.quantidade_argumentos; i++){
-                printf(" %s", t.argumentos[i]);
+            for (int i = 0; i < t[quantidade_tarefas - 1].quantidade_argumentos; i++){
+                printf(" %s", t[quantidade_tarefas - 1].argumentos[i]);
             }
-
             printf("\n");
         }
     }

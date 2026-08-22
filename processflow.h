@@ -1,5 +1,6 @@
 #ifndef PROCESSFLOW_H
 #define PROCESSFLOW_H
+#define MAXIMO_DE_TAREFAS 10
 
 typedef struct tarefa{
     char nome[100];
