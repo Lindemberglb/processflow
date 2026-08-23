@@ -4,6 +4,15 @@
 
 #include "processflow.h"
 
+tarefa *encontrar_tarefa(tarefa tarefas[], int quantidade_tarefas, char nome[]){
+    for (int i = 0; i < quantidade_tarefas; i++){
+        if (strcmp(tarefas[i].nome, nome) == 0){
+            return &tarefas[i];
+        }
+    }
+    return NULL;
+}
+
 int main(){
     char comando[100];
 
@@ -25,6 +34,7 @@ int main(){
         if (strncmp(comando, "task ", 5) == 0){
             if (quantidade_tarefas >= MAXIMO_DE_TAREFAS){
                 printf("limite de tarefas atingido\n");
+                printf("\n");
                 continue;
             }
 
@@ -35,7 +45,8 @@ int main(){
             parte = strtok(NULL, " ");
 
             if (parte == NULL){
-                printf("tarefa não foi encontrada\n");
+                printf("tarefa não foi encontrada. Tente de novo\n");
+                printf("\n");
                 continue;
             }
 
@@ -44,7 +55,8 @@ int main(){
             parte = strtok(NULL, " ");
 
             if (parte == NULL){
-                printf("programa nao foi encontrado\n");
+                printf("programa nao foi encontrado. Tente de novo\n");
+                printf("\n");
                 continue;
             }
 
@@ -72,9 +84,26 @@ int main(){
             printf("argumentos: ");
             for (int i = 0; i < t[quantidade_tarefas - 1].quantidade_argumentos; i++){
                 printf(" %s", t[quantidade_tarefas - 1].argumentos[i]);
+                quant_arg++;
             }
             printf("\n");
+            printf("quantidade de argumentos: %d\n" , quant_arg);
         }
+
+        if (strncmp(comando, "run ", 4) == 0){
+            char *nome = comando + 4;
+            tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
+            if (encontrada == NULL){
+                printf("tarefa nao encontrada\n");
+                printf("\n");
+                continue;
+            }
+
+            printf("tarefa encontrada\n");
+            printf("nome: %s\n", encontrada->nome);
+            printf("programa: %s\n", encontrada->programa);
+        }
+        printf("\n");
     }
     return 0;
 }

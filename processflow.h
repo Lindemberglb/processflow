@@ -9,4 +9,8 @@ typedef struct tarefa{
     int quantidade_argumentos;
 }tarefa;
 
+tarefa t;
+
+tarefa *encontrar_tarefa(tarefa t[], int quantidade_tarefas, char nome[]);
+
 #endif
