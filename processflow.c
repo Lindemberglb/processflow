@@ -92,6 +92,51 @@ int main(){
             printf("quantidade de argumentos: %d\n" , quant_arg);
         }
 
+        if (strncmp(comando, "run sequential ", 15) == 0){
+            char *parte = strtok(comando, " ");
+
+            parte = strtok(NULL, " ");
+            parte = strtok(NULL, " ");
+
+            while (parte != NULL){
+                tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+                if (encontrada == NULL){
+                    printf("tarefa nao encontrada\n");
+                }
+
+                else{
+                    pid_t pid = fork();
+
+                    if (pid == -1){
+                        printf("erro ao criar processo\n");
+                    }
+
+                    else if (pid == 0){
+                        char *argumentos_exec[12];
+
+                        argumentos_exec[0] = encontrada->programa;
+
+                        for (int i = 0; i < encontrada->quantidade_argumentos; i++){
+                            argumentos_exec[i + 1] = encontrada->argumentos[i];
+                        }
+
+                        argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL;
+
+                        execv(encontrada->programa, argumentos_exec);
+
+                        printf("erro ao executar o programa\n");
+                        exit(1);
+                    }
+
+                    else{
+                        wait(NULL);
+                    }
+                }
+                parte = strtok(NULL, " ");
+            }
+        }
+
         if (strncmp(comando, "run ", 4) == 0){
             char *nome = comando + 4;
             tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
@@ -124,8 +169,6 @@ int main(){
                 argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL; 
 
                 execv(encontrada->programa, argumentos_exec);
-
-                // Se chegou aqui, o execv não conseguiu executar o programa.
                 printf("erro ao executar o programa\n");
                 exit(1);
             }
