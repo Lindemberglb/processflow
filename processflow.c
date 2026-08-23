@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "processflow.h"
 
@@ -102,6 +104,33 @@ int main(){
             printf("tarefa encontrada\n");
             printf("nome: %s\n", encontrada->nome);
             printf("programa: %s\n", encontrada->programa);
+
+            pid_t pid = fork();
+
+            if (pid == -1){
+                printf("erro ao criar processo\n");
+                continue;
+            }
+
+            if (pid == 0){
+                char *argumentos_exec[11];
+
+                argumentos_exec[0] = encontrada->programa;
+
+                for (int i = 0; i < encontrada->quantidade_argumentos; i++){
+                    argumentos_exec[i + 1] = encontrada->argumentos[i];
+                }
+
+                argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL; 
+
+                execv(encontrada->programa, argumentos_exec);
+
+                // Se chegou aqui, o execv não conseguiu executar o programa.
+                printf("erro ao executar o programa\n");
+                exit(1);
+            }
+
+            wait(NULL);
         }
         printf("\n");
     }
