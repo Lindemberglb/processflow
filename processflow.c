@@ -189,6 +189,96 @@ int main(){
             }
         }
 
+        if (strncmp(comando, "run pipe ", 9) == 0){
+            char *parte;
+            tarefa *tarefas_pipe[MAXIMO_DE_TAREFAS];
+            int quantidade_pipe = 0;
+
+            parte = strtok(comando, " ");
+
+            parte = strtok(NULL, " ");
+
+            while ((parte = strtok(NULL, " ")) != NULL){
+                if (quantidade_pipe >= MAXIMO_DE_TAREFAS){
+                    printf("limite de tarefas atingido\n");
+                    break;
+                }
+
+                tarefas_pipe[quantidade_pipe] = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+                if (tarefas_pipe[quantidade_pipe] == NULL){
+                    printf("tarefa nao encontrada: %s\n", parte);
+                    quantidade_pipe = 0;
+                    break;
+                }
+
+                quantidade_pipe++;
+            }
+
+            if (quantidade_pipe < 2){
+                printf("pipe precisa de pelo menos duas tarefas\n");
+                continue;
+            }
+
+            int pipes[MAXIMO_DE_TAREFAS - 1][2];
+
+            for (int i = 0; i < quantidade_pipe - 1; i++){
+                if (pipe(pipes[i]) == -1){
+                    printf("erro ao criar pipe %d\n", i);
+                    continue;
+                }
+            }
+
+            for (int i = 0; i < quantidade_pipe; i++){
+                pid_t pid = fork();
+
+                if (pid == -1){
+                    printf("erro ao criar processo\n");
+                    continue;
+                }
+
+                if (pid == 0){
+
+                    if (i > 0){
+                        dup2(pipes[i - 1][0], STDIN_FILENO);
+                    }
+
+                    if (i < quantidade_pipe - 1){
+                        dup2(pipes[i][1], STDOUT_FILENO);
+                    }
+
+                    for (int j = 0; j < quantidade_pipe - 1; j++){
+                        close(pipes[j][0]);
+                        close(pipes[j][1]);
+                    }
+
+                    char *argumentos_exec[11];
+
+                    argumentos_exec[0] = tarefas_pipe[i]->programa;
+
+                    for (int j = 0; j < tarefas_pipe[i]->quantidade_argumentos; j++){
+                        argumentos_exec[j + 1] = tarefas_pipe[i]->argumentos[j];
+                    }
+
+                    argumentos_exec[tarefas_pipe[i]->quantidade_argumentos + 1] = NULL;
+
+                    execv(tarefas_pipe[i]->programa, argumentos_exec);
+
+                    printf("erro ao executar a tarefa\n");
+                    exit(1);
+                }
+            }
+
+            for (int i = 0; i < quantidade_pipe - 1; i++){
+                close(pipes[i][0]);
+                close(pipes[i][1]);
+            }
+
+            for (int i = 0; i < quantidade_pipe; i++){
+                wait(NULL);
+            }
+        }
+
         if (strncmp(comando, "run ", 4) == 0){
             char *nome = comando + 4;
             tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
