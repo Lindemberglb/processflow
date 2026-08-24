@@ -137,6 +137,58 @@ int main(){
             }
         }
 
+        if (strncmp(comando, "run parallel ", 13) == 0){
+            pid_t processos[10];
+            int quantidade_processos = 0;
+
+            char *parte = strtok(comando, " ");
+
+            parte = strtok(NULL, " ");
+            parte = strtok(NULL, " ");
+
+            while (parte != NULL){
+                tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+                if (encontrada == NULL){
+                    printf("tarefa nao encontrada\n");
+                }
+
+                else{
+                    pid_t pid = fork();
+
+                    if (pid == -1){
+                        printf("erro ao criar processo\n");
+                    }
+
+                    else if (pid == 0){
+                        char *argumentos_exec[12];
+
+                        argumentos_exec[0] = encontrada->programa;
+
+                        for (int i = 0; i < encontrada->quantidade_argumentos; i++){
+                            argumentos_exec[i + 1] = encontrada->argumentos[i];
+                        }
+
+                        argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL;
+                        execv(encontrada->programa, argumentos_exec);
+
+                        printf("erro ao executar o programa\n");
+                        exit(1);
+                    }
+
+                    else{
+                        processos[quantidade_processos] = pid;
+                        quantidade_processos++;
+                    }
+                }
+                parte = strtok(NULL, " ");
+            }
+
+            for (int i = 0; i < quantidade_processos; i++){
+                waitpid(processos[i], NULL, 0);
+            }
+        }
+
         if (strncmp(comando, "run ", 4) == 0){
             char *nome = comando + 4;
             tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
