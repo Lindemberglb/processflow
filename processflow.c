@@ -21,8 +21,7 @@ int main(){
     tarefa t[MAXIMO_DE_TAREFAS];
     int quantidade_tarefas = 0;
 
-    while (1)
-    {
+    while (1){
         printf("processflow> ");
 
         fgets(comando, 100, stdin);
@@ -90,6 +89,90 @@ int main(){
             }
             printf("\n");
             printf("quantidade de argumentos: %d\n" , quant_arg);
+        }
+
+        if (strncmp(comando, "input ", 6) == 0){
+            char *parte;
+
+            parte = strtok(comando, " ");
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+            if (encontrada == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("arquivo nao encontrado\n");
+                continue;
+            }
+
+            strcpy(encontrada->arquivo_entrada, parte);
+        }
+
+        if (strncmp(comando, "output ", 7) == 0){
+            char *parte;
+
+            parte = strtok(comando, " ");
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+            if (encontrada == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("arquivo nao encontrado\n");
+                continue;
+            }
+
+            strcpy(encontrada->arquivo_saida, parte);
+        }
+
+        if (strncmp(comando, "append ", 7) == 0){
+            char *parte;
+
+            parte = strtok(comando, " ");
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, parte);
+
+            if (encontrada == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("arquivo nao encontrado\n");
+                continue;
+            }
+
+            strcpy(encontrada->arquivo_append, parte);
         }
 
         if (strncmp(comando, "run sequential ", 15) == 0){
