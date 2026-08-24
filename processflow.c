@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "processflow.h"
 
@@ -15,16 +16,67 @@ tarefa *encontrar_tarefa(tarefa tarefas[], int quantidade_tarefas, char nome[]){
     return NULL;
 }
 
+void preparar_redirecionamento(tarefa *tarefa_atual, char diretorio_trabalho[]){
+    if (diretorio_trabalho[0] != '\0'){
+        if (chdir(diretorio_trabalho) == -1){
+            printf("erro ao mudar diretorio de trabalho\n");
+            exit(1);
+        }
+    }
+
+    if (tarefa_atual->arquivo_entrada[0] != '\0'){
+
+        int arquivo = open(tarefa_atual->arquivo_entrada, O_RDONLY);
+
+        if (arquivo == -1){
+            printf("erro ao abrir arquivo de entrada\n");
+            exit(1);
+        }
+
+        dup2(arquivo, STDIN_FILENO);
+        close(arquivo);
+    }
+
+    if (tarefa_atual->arquivo_saida[0] != '\0'){
+        int arquivo = open(tarefa_atual->arquivo_saida, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            
+        if (arquivo == -1){
+            printf("erro ao abrir arquivo de saida\n");
+            exit(1);
+        }
+
+        dup2(arquivo, STDOUT_FILENO);
+        close(arquivo);
+    }
+
+    if (tarefa_atual->arquivo_append[0] != '\0'){
+
+        int arquivo = open(tarefa_atual->arquivo_append, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
+        if (arquivo == -1){
+            printf("erro ao abrir arquivo append\n");
+            exit(1);
+        }
+
+        dup2(arquivo, STDOUT_FILENO);
+        close(arquivo);
+    }
+}
+
 int main(){
     char comando[100];
 
     tarefa t[MAXIMO_DE_TAREFAS];
     int quantidade_tarefas = 0;
+    char diretorio_trabalho[100] = "";
 
     while (1){
         printf("processflow> ");
 
-        fgets(comando, 100, stdin);
+        if (fgets(comando, 100, stdin) == NULL){
+            printf("\n");
+            break;
+        }
 
         comando[strcspn(comando, "\n")] = '\0';
 
@@ -64,6 +116,9 @@ int main(){
             strcpy(t[quantidade_tarefas].programa, parte);
 
             t[quantidade_tarefas].quantidade_argumentos = 0;
+            t[quantidade_tarefas].arquivo_entrada[0] = '\0';
+            t[quantidade_tarefas].arquivo_saida[0] = '\0';
+            t[quantidade_tarefas].arquivo_append[0] = '\0';
 
             while ((parte = strtok(NULL, " ")) != NULL){
                 if (t[quantidade_tarefas].quantidade_argumentos >= 10){
@@ -89,6 +144,21 @@ int main(){
             }
             printf("\n");
             printf("quantidade de argumentos: %d\n" , quant_arg);
+        }
+
+        if (strncmp(comando, "workdir ", 8) == 0){
+            char *parte;
+
+            parte = strtok(comando, " ");
+
+            parte = strtok(NULL, " ");
+
+            if (parte == NULL){
+                printf("diretorio nao encontrado\n");
+                continue;
+            }
+
+            strcpy(diretorio_trabalho, parte); 
         }
 
         if (strncmp(comando, "input ", 6) == 0){
@@ -205,6 +275,7 @@ int main(){
                         }
 
                         argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL;
+                        preparar_redirecionamento(encontrada, diretorio_trabalho);
 
                         execv(encontrada->programa, argumentos_exec);
 
@@ -221,7 +292,7 @@ int main(){
         }
 
         if (strncmp(comando, "run parallel ", 13) == 0){
-            pid_t processos[10];
+            pid_t processos[MAXIMO_DE_TAREFAS];
             int quantidade_processos = 0;
 
             char *parte = strtok(comando, " ");
@@ -253,6 +324,8 @@ int main(){
                         }
 
                         argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL;
+                        preparar_redirecionamento(encontrada, diretorio_trabalho);
+
                         execv(encontrada->programa, argumentos_exec);
 
                         printf("erro ao executar o programa\n");
@@ -305,11 +378,22 @@ int main(){
 
             int pipes[MAXIMO_DE_TAREFAS - 1][2];
 
+            int erro = 0;
+
             for (int i = 0; i < quantidade_pipe - 1; i++){
                 if (pipe(pipes[i]) == -1){
                     printf("erro ao criar pipe %d\n", i);
-                    continue;
+                    erro = 1;
+                    break;
                 }
+            }
+
+            if (erro){
+                for (int i = 0; i < quantidade_pipe - 1; i++){
+                    close(pipes[i][0]);
+                    close(pipes[i][1]);
+                }
+                continue;
             }
 
             for (int i = 0; i < quantidade_pipe; i++){
@@ -321,13 +405,18 @@ int main(){
                 }
 
                 if (pid == 0){
-
                     if (i > 0){
-                        dup2(pipes[i - 1][0], STDIN_FILENO);
+                        if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1){
+                            printf("erro ao redirecionar entrada\n");
+                            exit(1);
+                        }
                     }
 
                     if (i < quantidade_pipe - 1){
-                        dup2(pipes[i][1], STDOUT_FILENO);
+                        if (dup2(pipes[i][1], STDOUT_FILENO) == -1){
+                            printf("erro ao redirecionar saida\n");
+                            exit(1);
+                        }
                     }
 
                     for (int j = 0; j < quantidade_pipe - 1; j++){
@@ -335,7 +424,7 @@ int main(){
                         close(pipes[j][1]);
                     }
 
-                    char *argumentos_exec[11];
+                    char *argumentos_exec[12];
 
                     argumentos_exec[0] = tarefas_pipe[i]->programa;
 
@@ -383,7 +472,7 @@ int main(){
             }
 
             if (pid == 0){
-                char *argumentos_exec[11];
+                char *argumentos_exec[12];
 
                 argumentos_exec[0] = encontrada->programa;
 
@@ -392,12 +481,12 @@ int main(){
                 }
 
                 argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL; 
+                preparar_redirecionamento(encontrada, diretorio_trabalho);
 
                 execv(encontrada->programa, argumentos_exec);
                 printf("erro ao executar o programa\n");
                 exit(1);
             }
-
             wait(NULL);
         }
         printf("\n");
