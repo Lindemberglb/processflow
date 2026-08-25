@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #include "processflow.h"
 
@@ -63,7 +64,20 @@ void preparar_redirecionamento(tarefa *tarefa_atual, char diretorio_trabalho[]){
     }
 }
 
-int main(){
+void verificar_status(pid_t pid, int status){
+    if (WIFEXITED(status)){
+        int codigo = WEXITSTATUS(status);
+
+        if (codigo != 0){
+            printf("processo %d terminou com codigo %d\n", pid, codigo);
+        }
+    }
+    else if (WIFSIGNALED(status)){
+        printf("processo %d terminou\n", pid);
+    }
+}
+
+int main(int argc, char *argv[]){
     char comando[100];
 
     tarefa t[MAXIMO_DE_TAREFAS];
@@ -74,18 +88,56 @@ int main(){
 
     char diretorio_trabalho[100] = "";
 
-    while (1){
-        printf("processflow> ");
+    FILE *arquivo_workflow = NULL;
+    int encontrou_exit = 0;
 
-        if (fgets(comando, 100, stdin) == NULL){
-            printf("\n");
-            break;
+    if (argc > 2){
+        printf("uso: ./processflow arquivo.pf\n");
+        return 1;
+    }
+
+    if (argc == 2){
+        arquivo_workflow = fopen(argv[1], "r");
+
+        if (arquivo_workflow == NULL){
+            printf("erro ao abrir arquivo de workflow\n");
+            return 1;
+        }
+    }
+
+    while (1){
+        if (arquivo_workflow != NULL && !encontrou_exit){
+            printf("erro. workflow terminou sem exit\n");
+        }
+
+        if (arquivo_workflow != NULL){
+            if (fgets(comando, 100, arquivo_workflow) == NULL){
+                break;
+            }
+            printf("%s", comando);
+        }
+            
+        else{
+            printf("processflow> ");
+            if (fgets(comando, 100, stdin) == NULL){
+                printf("\n");
+                break;
+            }
         }
 
         comando[strcspn(comando, "\n")] = '\0';
 
+        while (comando[0] == ' '){
+            memmove(comando, comando + 1, strlen(comando));
+        }
+
+        if (comando[0] == '\0'){
+            continue;
+        }
+
         if (strcmp(comando, "exit") == 0){
-            break;
+            encontrou_exit = 1;
+            break;  
         }
 
         if (strncmp(comando, "task ", 5) == 0){
@@ -154,17 +206,27 @@ int main(){
             char *parte;
 
             parte = strtok(comando, " ");
-
             parte = strtok(NULL, " ");
 
             if (parte == NULL){
-                printf("diretorio nao encontrado\n");
+                printf("diretório não encontrado\n");
                 continue;
             }
 
-            strcpy(diretorio_trabalho, parte); 
-        }
+            struct stat informacoes;
 
+            if (stat(parte, &informacoes) == -1){
+                printf("diretório não existe\n");
+                continue;
+            }
+
+            if (!S_ISDIR(informacoes.st_mode)){
+                printf("o caminho informado não é um diretório\n");
+                continue;
+            }
+
+            strcpy(diretorio_trabalho, parte);
+        }
         if (strncmp(comando, "input ", 6) == 0){
             char *parte;
 
@@ -288,7 +350,9 @@ int main(){
                     }
 
                     else{
-                        wait(NULL);
+                        int status;
+                        waitpid(pid, &status, 0);
+                        verificar_status(pid, status);
                     }
                 }
                 parte = strtok(NULL, " ");
@@ -345,7 +409,9 @@ int main(){
             }
 
             for (int i = 0; i < quantidade_processos; i++){
-                waitpid(processos[i], NULL, 0);
+                int status;
+                waitpid(processos[i], &status, 0);
+                verificar_status(processos[i], status);
             }
         }
 
@@ -451,7 +517,12 @@ int main(){
             }
 
             for (int i = 0; i < quantidade_pipe; i++){
-                wait(NULL);
+                int status;
+                pid_t pid = wait(&status);
+
+                if (pid > 0){
+                    verificar_status(pid, status);
+                }
             }
         }
 
@@ -515,15 +586,30 @@ int main(){
             }
 
             for (int i = 0; i < quantidade_jobs; i++){
-                int resultado = waitpid(jobs[i].pid, NULL, WNOHANG);
-
+                int status;
+                int resultado = waitpid(jobs[i].pid, &status, WNOHANG);
                 if (resultado == jobs[i].pid){
                     jobs[i].terminado = 1;
+
+                    if (WIFEXITED(status)){
+                        int codigo = WEXITSTATUS(status);
+
+                        if (codigo != 0){
+                            printf("[%d] %d terminou com codigo %d\n",
+                                jobs[i].id,
+                                jobs[i].pid,
+                                codigo);
+                        }
+                    }
                 }
 
-                if (jobs[i].terminado){
-                    printf("[%d] %d terminado\n", jobs[i].id, jobs[i].pid);
+                if (!jobs[i].terminado){
+                    int status;
+                    waitpid(jobs[i].pid, &status, 0);
+                    jobs[i].terminado = 1;
+                    verificar_status(jobs[i].pid, status);
                 }
+
                 else{
                     printf("[%d] %d executando\n", jobs[i].id, jobs[i].pid);
                 }
@@ -561,7 +647,7 @@ int main(){
             while (*nome == ' '){
                 nome++;
             }
-            
+
             tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
 
             if (encontrada == NULL){
@@ -597,7 +683,18 @@ int main(){
                 printf("erro ao executar o programa\n");
                 exit(1);
             }
-            waitpid(pid, NULL, 0);
+            
+            int status;
+
+            waitpid(pid, &status, 0);
+
+            if (WIFEXITED(status)){
+                int codigo = WEXITSTATUS(status);
+
+                if (codigo != 0){
+                    printf("tarefa terminou com codigo %d\n", codigo);
+                }
+            }
         }
         printf("\n");
     }
