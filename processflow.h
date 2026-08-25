@@ -1,6 +1,7 @@
 #ifndef PROCESSFLOW_H
 #define PROCESSFLOW_H
 #define MAXIMO_DE_TAREFAS 10
+#include <sys/types.h>
 
 typedef struct tarefa{
     char nome[100];
@@ -11,6 +12,12 @@ typedef struct tarefa{
     char arquivo_saida[100];
     char arquivo_append[100];
 }tarefa;
+
+typedef struct job{
+    int id;            
+    pid_t pid;          
+    int terminado;     
+}job;
 
 tarefa *encontrar_tarefa(tarefa t[], int quantidade_tarefas, char nome[]);
 

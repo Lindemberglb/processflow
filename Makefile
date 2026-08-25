@@ -3,3 +3,6 @@ processflow:
 
 clean:
 	rm -f processflow
+
+run: processflow
+	./processflow

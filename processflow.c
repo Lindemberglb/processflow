@@ -68,6 +68,10 @@ int main(){
 
     tarefa t[MAXIMO_DE_TAREFAS];
     int quantidade_tarefas = 0;
+
+    job jobs[MAXIMO_DE_TAREFAS];
+    int quantidade_jobs = 0;
+
     char diretorio_trabalho[100] = "";
 
     while (1){
@@ -451,9 +455,115 @@ int main(){
             }
         }
 
+        if (strncmp(comando, "start ", 6) == 0){
+            if (quantidade_jobs >= MAXIMO_DE_TAREFAS){
+                printf("limite de jobs atingido\n");
+                continue;
+            }
+
+            char *nome = comando + 6;
+
+            while (*nome == ' '){
+                nome++;
+            }
+
+            tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
+
+            if (encontrada == NULL){
+                printf("tarefa nao encontrada\n");
+                continue;
+            }
+
+            pid_t pid = fork();
+
+            if (pid == -1){
+                printf("erro ao criar processo\n");
+                continue;
+            }
+
+            if (pid == 0){
+
+                preparar_redirecionamento(encontrada, diretorio_trabalho);
+
+                char *argumentos_exec[12];
+                argumentos_exec[0] = encontrada->programa;
+
+                for (int i = 0; i < encontrada->quantidade_argumentos; i++){
+                    argumentos_exec[i + 1] = encontrada->argumentos[i];
+                }
+
+                argumentos_exec[encontrada->quantidade_argumentos + 1] = NULL;
+
+                execv(encontrada->programa, argumentos_exec);
+
+                printf("erro ao executar o programa\n");
+                exit(1);
+            }
+
+            jobs[quantidade_jobs].id = quantidade_jobs + 1;
+            jobs[quantidade_jobs].pid = pid;
+            jobs[quantidade_jobs].terminado = 0;
+
+            printf("[%d] %d\n", jobs[quantidade_jobs].id, jobs[quantidade_jobs].pid);
+            quantidade_jobs++;
+        }
+
+        if (strcmp(comando, "jobs") == 0){
+            if (quantidade_jobs == 0){
+                printf("nenhum job em background\n");
+                continue;
+            }
+
+            for (int i = 0; i < quantidade_jobs; i++){
+                int resultado = waitpid(jobs[i].pid, NULL, WNOHANG);
+
+                if (resultado == jobs[i].pid){
+                    jobs[i].terminado = 1;
+                }
+
+                if (jobs[i].terminado){
+                    printf("[%d] %d terminado\n", jobs[i].id, jobs[i].pid);
+                }
+                else{
+                    printf("[%d] %d executando\n", jobs[i].id, jobs[i].pid);
+                }
+            }
+
+            continue;
+        }
+
+        if (strncmp(comando, "wait ", 5) == 0){
+            char *parte = comando + 5;
+            int id = atoi(parte);
+            int encontrado = 0;
+
+            for (int i = 0; i < quantidade_jobs; i++){
+                if (jobs[i].id == id){
+                    encontrado = 1;
+                    if (!jobs[i].terminado){
+                        waitpid(jobs[i].pid, NULL, 0);
+                        jobs[i].terminado = 1;
+                    }
+
+                    printf("job %d terminou\n", jobs[i].id);
+                    break;
+                }
+            }
+
+            if (!encontrado){
+                printf("job nao encontrado\n");
+            }
+            continue;
+        }
+
         if (strncmp(comando, "run ", 4) == 0){
             char *nome = comando + 4;
+            while (*nome == ' '){
+                nome++;
+            }
+            
             tarefa *encontrada = encontrar_tarefa(t, quantidade_tarefas, nome);
+
             if (encontrada == NULL){
                 printf("tarefa nao encontrada\n");
                 printf("\n");
@@ -487,7 +597,7 @@ int main(){
                 printf("erro ao executar o programa\n");
                 exit(1);
             }
-            wait(NULL);
+            waitpid(pid, NULL, 0);
         }
         printf("\n");
     }
